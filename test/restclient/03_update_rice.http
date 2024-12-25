@@ -1,0 +1,19 @@
+@baseUrl = http://localhost:3000
+@moderationSecret = superSecret123
+@previous_identifier = my-first-zenrice-feffbf61-b815-4357-ba0c-2cbadf94fcfe
+@previous_token = 806cd360-6c14-44de-92db-f46f328dab5a
+
+PUT {{baseUrl}}/rices/{{previous_identifier}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+x-rices-token: {{previous_token}}
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="name"
+
+Mi rice renombrado
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="newfile.txt"
+Content-Type: text/plain
+
+This is an example zenrice file (modified).
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

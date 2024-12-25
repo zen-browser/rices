@@ -1,0 +1,7 @@
+@baseUrl = http://localhost:3000
+@moderationSecret = superSecret123
+@previous_identifier = my-first-zenrice-b7b94d24-ecb6-4495-93de-ba85be2e3052
+@previous_token = 6181664b-00e8-4eef-8e23-1f7fa0c64021
+
+DELETE {{baseUrl}}/rices/{{previous_identifier}}
+x-rices-token: {{previous_token}}

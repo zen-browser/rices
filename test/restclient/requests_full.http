@@ -1,0 +1,94 @@
+### Variables Iniciales
+@baseUrl = http://localhost:3000
+@moderationSecret = superSecret123
+@random_identifier = 123e4567-e89b-12d3-a456-426614174000  # Give a valid UUID
+
+@identifier = YOUR_IDENTIFIER_HERE
+@token = YOUR_TOKEN_HERE
+
+###
+
+### 1. Crear un Nuevo Pack
+POST {{baseUrl}}/rices
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="name"
+
+Mi primer rice
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="example.txt"
+Content-Type: text/plain
+
+Contenido de mi archivo.
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### **Instrucciones Después de Ejecutar:**
+1. Ejecuta esta solicitud.
+2. En la respuesta, copia los valores de `identifier` y `token`.
+3. Reemplaza `YOUR_IDENTIFIER_HERE` y `YOUR_TOKEN_HERE` en las variables al inicio del archivo con los valores copiados.
+
+###
+
+GET {{baseUrl}}/rices/{{identifier}}
+
+###
+
+PUT {{baseUrl}}/rices/{{identifier}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+x-rices-token: {{token}}
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="name"
+
+Mi rice renombrado
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="newfile.txt"
+Content-Type: text/plain
+
+Contenido de mi nuevo archivo.
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+### 4. Eliminar el Pack Usando el Token
+DELETE {{baseUrl}}/rices/{{identifier}}
+x-rices-token: {{token}}
+
+###
+
+### 5. Intentar Obtener el Pack Eliminado (Debe Retornar 404)
+GET {{baseUrl}}/rices/{{identifier}}
+
+###
+
+### 6. Crear un Nuevo Pack para Moderación
+POST {{baseUrl}}/rices
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="name"
+
+Pack para moderación
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="example.txt"
+Content-Type: text/plain
+
+Contenido de mi archivo.
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+### 7. Eliminar el Pack por Moderación con el Secreto Correcto
+DELETE {{baseUrl}}/rices/moderate/delete/{{identifier}}
+x-moderation-secret: {{moderationSecret}}
+
+###
+
+DELETE {{baseUrl}}/rices/moderate/delete/{{random_identifier}}
+x-moderation-secret: claveIncorrecta
+
+###
+
+DELETE {{baseUrl}}/rices/moderate/delete/{{random_identifier}}
+x-moderation-secret: {{moderationSecret}}

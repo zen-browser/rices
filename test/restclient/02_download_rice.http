@@ -1,0 +1,5 @@
+@baseUrl = http://localhost:3000
+@moderationSecret = superSecret123
+@previous_identifier = my-first-zenrice-feffbf61-b815-4357-ba0c-2cbadf94fcfe
+
+GET {{baseUrl}}/rices/{{previous_identifier}}
