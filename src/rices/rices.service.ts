@@ -34,6 +34,11 @@ export class RicesService {
       : uuidv4();
 
     const token = uuidv4();
+
+    const encodedContent = Buffer.from(
+      JSON.stringify(createRiceDto.content),
+    ).toString('base64');
+
     const metadata = {
       id: uuidv4(),
       token,
@@ -58,7 +63,7 @@ export class RicesService {
       const uploadedFilePath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.createOrUpdateFile(
         uploadedFilePath,
-        createRiceDto.content,
+        encodedContent,
         `Add file createRiceDto.content to rice ${slug}`,
       );
     }
@@ -79,11 +84,31 @@ export class RicesService {
       throw new NotFoundException('Rice file not found in GitHub');
     }
 
-    return { slug, fileContent };
+    // Decode Base64 content
+    const contentPrev = Buffer.from(fileContent, 'base64').toString('utf-8');
+
+    // Remove unescaped double quotes at the beginning and end, if present
+    const content = contentPrev.replace(/^"|"$/g, '');
+
+    return { slug, content };
   }
 
   async update(slug: string, token: string, updateRiceDto: UpdateRiceDto) {
-    const rice = await this.supabaseService.getRiceBySlug(slug);
+    /*************  ✨ Codeium Command ⭐  *************/
+    /**
+     * Updates the metadata and content of a rice entry identified by its slug.
+     *
+     * @param slug - The unique identifier for the rice entry.
+     * @param token - The authorization token to verify the request.
+     * @param updateRiceDto - Data Transfer Object containing fields to update.
+     *
+     * @returns A confirmation message indicating successful update.
+     *
+     * @throws NotFoundException - If the rice entry does not exist.
+     * @throws UnauthorizedException - If the provided token is invalid.
+     */
+    /******  bf5f61f3-c1dc-40a0-85e6-288824144ead  *******/ const rice =
+      await this.supabaseService.getRiceBySlug(slug);
     if (!rice) throw new NotFoundException('Rice not found');
     if (rice.token !== token) throw new UnauthorizedException('Invalid token');
 
@@ -103,10 +128,14 @@ export class RicesService {
     );
 
     if (updateRiceDto.content) {
+      const encodedContent = Buffer.from(
+        JSON.stringify(updateRiceDto.content),
+      ).toString('base64');
+
       const uploadedFilePath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.createOrUpdateFile(
         uploadedFilePath,
-        updateRiceDto.content,
+        encodedContent,
         `Update file updateRiceDto.content in rice ${slug}`,
       );
     }

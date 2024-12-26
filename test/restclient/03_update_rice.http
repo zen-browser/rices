@@ -2,19 +2,18 @@
 @previous_slug = cool-zenrice-aurora2-1d1e74b3-8d6d-40ea-bd4f-a6f4ad893f88
 @previous_token = be4545f4-d92b-416c-8b3b-50cc9a49dee9
 
-# base64 of following json: ewogICAgImtleSI6ICJuZXdfdmFsdWUiLAogICAgImRlc2NyaXB0aW9uIjogIkV4YW1wbGUgY29udGVudCIKfQ
-
 # {
-#     "key": "new_value",
-#     "description": "Example content"
+#     "key": "value",
+#     "description": "Example updated content"
 # }
+
+# {'key':'value','description':'Example updated content'}
 
 PUT {{baseUrl}}/rices/{{previous_slug}}
 Content-Type: application/json
 x-rices-token: {{previous_token}}
 
 {
-
-  "content": "ewogICAgImtleSI6ICJuZXdfdmFsdWUiLAogICAgImRlc2NyaXB0aW9uIjogIkV4YW1wbGUgY29udGVudCIKfQ"
+  "content": "{'key':'value','description':'Example updated content'}"
 }
 

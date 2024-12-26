@@ -1,18 +1,17 @@
 @baseUrl = http://localhost:3000
 
-# base64 of following json: ewogICAgImtleSI6ICJ2YWx1ZSIsCiAgICAiZGVzY3JpcHRpb24iOiAiRXhhbXBsZSBjb250ZW50Igp9
-
 # {
 #     "key": "value",
 #     "description": "Example content"
 # }
 
+# {'key':'value','description':'Example content'}
 
 POST {{baseUrl}}/rices
 Content-Type: application/json
 
 {
-  "name": "cool-zenrice-aurora2",
-  "content": "ewogICAgImtleSI6ICJ2YWx1ZSIsCiAgICAiZGVzY3JpcHRpb24iOiAiRXhhbXBsZSBjb250ZW50Igp9"
+  "name": "cool-zenrice-aurora",
+  "content": "{'key':'value','description':'Example content'}"
 }
 
