@@ -1,296 +1,172 @@
-// src/rices/rices.service.ts
-
 import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { CreateRiceDto } from './dto/create-rice.dto';
 import { UpdateRiceDto } from './dto/update-rice.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSlug } from './utils/slug.util';
 import { GitHubService } from '../github/github.service';
-
-/**
- * Checks if the provided error has a 'status' property of type 'number'
- * and a 'message' property of type 'string'.
- */
-function isOctokitResponseError(
-  error: unknown,
-): error is { status: number; message: string } {
-  return (
-    error !== null &&
-    typeof error === 'object' &&
-    'status' in error &&
-    typeof (error as any).status === 'number' &&
-    'message' in error &&
-    typeof (error as any).message === 'string'
-  );
-}
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class RicesService {
-  constructor(private readonly gitHubService: GitHubService) {}
+  constructor(
+    private readonly gitHubService: GitHubService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
-  /**
-   * Create a new rice
-   */
-  async create(createRiceDto: CreateRiceDto, file?: Express.Multer.File) {
-    try {
-      // 1. Generate identifier (slug + UUID or just UUID)
-      let identifier: string;
-      if (createRiceDto.name) {
-        // Generate slug from the name
-        const slug = generateSlug(createRiceDto.name);
-        identifier = `${slug}-${uuidv4()}`;
-      } else {
-        identifier = uuidv4();
-      }
+  async create(createRiceDto: CreateRiceDto) {
+    // Check if a rice with the same name already exists
+    const existingRice = await this.supabaseService.getRiceByName(
+      createRiceDto.name,
+    );
+    if (existingRice) {
+      throw new ConflictException(
+        `A rice with the name '${createRiceDto.name}' already exists.`,
+      );
+    }
 
-      // 2. Generate token and save metadata
-      const token = uuidv4();
-      const metadata = {
-        id: identifier,
-        token,
-        name: createRiceDto.name || null,
-        createdAt: new Date().toISOString(),
-      };
-      const metadataContent = JSON.stringify(metadata, null, 2);
-      const riceJsonPath = `rices/${identifier}/rice.json`;
+    const slug = createRiceDto.name
+      ? `${generateSlug(createRiceDto.name)}-${uuidv4()}`
+      : uuidv4();
 
-      // 3. Create or update rice.json in GitHub
+    const token = uuidv4();
+    const metadata = {
+      id: uuidv4(),
+      token,
+      name: createRiceDto.name || null,
+      slug: slug,
+      visits: 0,
+      level: 0,
+      created_at: new Date().toISOString(),
+    };
+
+    await this.supabaseService.insertRice(metadata);
+
+    const metadataContent = JSON.stringify(metadata, null, 2);
+    const riceJsonPath = `rices/${slug}/rice.json`;
+    await this.gitHubService.createOrUpdateFile(
+      riceJsonPath,
+      metadataContent,
+      `Add rice ${slug}`,
+    );
+
+    if (createRiceDto.content) {
+      const uploadedFilePath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.createOrUpdateFile(
-        riceJsonPath,
-        metadataContent,
-        `Add rice ${identifier}`,
+        uploadedFilePath,
+        createRiceDto.content,
+        `Add file createRiceDto.content to rice ${slug}`,
       );
-
-      // 4. If there's a file, upload it to GitHub
-      if (file && file.originalname && file.buffer) {
-        const fileContent = file.buffer.toString('utf-8');
-        const uploadedFilePath = `rices/${identifier}/data.zenrice`;
-        await this.gitHubService.createOrUpdateFile(
-          uploadedFilePath,
-          fileContent,
-          `Add file ${file.originalname} to rice ${identifier}/data.zenrice`,
-        );
-      }
-
-      // 5. Return identifier and token
-      return {
-        identifier,
-        token,
-      };
-    } catch (error) {
-      console.error('Error creating the rice:', error);
-      throw new Error('Failed to create rice');
     }
+
+    return { slug, token };
   }
 
-  /**
-   * Get rice information by its identifier
-   */
-  async findOne(identifier: string) {
-    try {
-      const riceJsonPath = `rices/${identifier}/data.zenrice`;
-      const fileContent = await this.gitHubService.getFileContent(riceJsonPath);
+  async findOne(slug: string) {
+    // Check if the rice exists in the database
+    const rice = await this.supabaseService.getRiceBySlug(slug);
+    if (!rice) throw new NotFoundException('Rice not found');
 
-      if (!fileContent) {
-        throw new NotFoundException('Rice not found');
-      }
+    // Fetch the file from GitHub
+    const filePath = `rices/${slug}/data.zenrice`;
+    const fileContent = await this.gitHubService.getFileContent(filePath);
 
-      return fileContent;
-    } catch (error) {
-      if (isOctokitResponseError(error) && error.status === 404) {
-        throw new NotFoundException('Rice not found');
-      }
-      console.error('Error getting the rice:', error);
-      throw new Error('Failed to get rice');
+    if (!fileContent) {
+      throw new NotFoundException('Rice file not found in GitHub');
     }
+
+    return { slug, fileContent };
   }
 
-  /**
-   * Update an existing rice
-   */
-  async update(
-    identifier: string,
-    token: string,
-    updateRiceDto: UpdateRiceDto,
-    file?: Express.Multer.File,
-  ) {
-    try {
-      // 1. Retrieve and validate metadata
-      const riceJsonPath = `rices/${identifier}/rice.json`;
-      const metadataContent =
-        await this.gitHubService.getFileContent(riceJsonPath);
+  async update(slug: string, token: string, updateRiceDto: UpdateRiceDto) {
+    const rice = await this.supabaseService.getRiceBySlug(slug);
+    if (!rice) throw new NotFoundException('Rice not found');
+    if (rice.token !== token) throw new UnauthorizedException('Invalid token');
 
-      if (!metadataContent) {
-        throw new NotFoundException('Rice not found');
-      }
+    const updatedMetadata = {
+      ...rice,
+      updated_at: new Date().toISOString(),
+    };
 
-      const metadata = JSON.parse(metadataContent);
+    await this.supabaseService.updateRice(slug, updatedMetadata);
 
-      if (metadata.token !== token) {
-        throw new UnauthorizedException('Invalid token');
-      }
+    const metadataContent = JSON.stringify(updatedMetadata, null, 2);
+    const riceJsonPath = `rices/${slug}/rice.json`;
+    await this.gitHubService.createOrUpdateFile(
+      riceJsonPath,
+      metadataContent,
+      `Update rice ${slug}`,
+    );
 
-      // 2. Update metadata
-      if (updateRiceDto.name) {
-        metadata.name = updateRiceDto.name;
-      }
-      metadata.updatedAt = new Date().toISOString();
-      const updatedMetadataContent = JSON.stringify(metadata, null, 2);
-
-      // 3. Update rice.json in GitHub
+    if (updateRiceDto.content) {
+      const uploadedFilePath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.createOrUpdateFile(
-        riceJsonPath,
-        updatedMetadataContent,
-        `Update rice ${identifier}`,
+        uploadedFilePath,
+        updateRiceDto.content,
+        `Update file updateRiceDto.content in rice ${slug}`,
       );
-
-      // 4. If there's a file, update it in GitHub
-      if (file && file.originalname && file.buffer) {
-        const fileContent = file.buffer.toString('utf-8');
-        const uploadedFilePath = `rices/${identifier}/data.zenrice`;
-        await this.gitHubService.createOrUpdateFile(
-          uploadedFilePath,
-          fileContent,
-          `Update file ${file.originalname} in rice ${identifier}/data.zenrice`,
-        );
-      }
-
-      return {
-        message: `Rice ${identifier} updated`,
-      };
-    } catch (error) {
-      if (isOctokitResponseError(error)) {
-        if (error.status === 404) {
-          throw new NotFoundException('Rice not found');
-        }
-        if (error.status === 401 || error.status === 403) {
-          throw new UnauthorizedException('Invalid token');
-        }
-      }
-      console.error('Error updating the rice:', error);
-      throw new Error('Failed to update rice');
     }
+
+    return { message: `ok` };
   }
 
-  /**
-   * Delete an existing rice
-   */
-  async remove(identifier: string, token: string): Promise<void> {
-    try {
-      // 1. Retrieve and validate metadata
-      const riceJsonPath = `rices/${identifier}/rice.json`;
-      const metadataContent =
-        await this.gitHubService.getFileContent(riceJsonPath);
+  async remove(slug: string, token: string): Promise<void> {
+    const rice = await this.supabaseService.getRiceBySlug(slug);
+    if (!rice) throw new NotFoundException('Rice not found');
+    if (rice.token !== token) throw new UnauthorizedException('Invalid token');
 
-      if (!metadataContent) {
-        throw new NotFoundException('Rice not found');
-      }
+    await this.supabaseService.deleteRice(slug);
 
-      const metadata = JSON.parse(metadataContent);
-
-      if (metadata.token !== token) {
-        throw new UnauthorizedException('Invalid token');
-      }
-
-      // 2. Delete rice.json from GitHub
-      await this.gitHubService.deleteFile(
-        riceJsonPath,
-        `Remove rice ${identifier}`,
-      );
-
-      // 3. List and delete uploaded files (if any)
-      const uploadedFilesPath = `rices/${identifier}`;
-      const files =
-        await this.gitHubService.listFilesInDirectory(uploadedFilesPath);
-
-      for (const file of files) {
-        if (file !== 'rice.json') {
-          const filePath = `rices/${identifier}/${file}`;
-          await this.gitHubService.deleteFile(
-            filePath,
-            `Remove file ${file} from rice ${identifier}`,
-          );
-        }
-      }
-    } catch (error) {
-      if (isOctokitResponseError(error)) {
-        if (error.status === 404) {
-          throw new NotFoundException('Rice not found');
-        }
-        if (error.status === 401 || error.status === 403) {
-          throw new UnauthorizedException('Invalid token');
-        }
-      }
-      console.error('Error deleting the rice:', error);
-      throw new Error('Failed to remove rice');
-    }
+    const riceJsonPath = `rices/${slug}/rice.json`;
+    await this.gitHubService.deleteFile(riceJsonPath, `Remove rice ${slug}`);
   }
 
   /**
    * Delete a rice without checking the user's token.
    * Exclusive use for moderators with the secret key.
    */
-  public async moderateRemove(identifier: string): Promise<void> {
+  public async moderateRemove(slug: string): Promise<void> {
     try {
-      // 1. Check if rice.json exists
-      const riceJsonPath = `rices/${identifier}/rice.json`;
-      const metadataContent =
-        await this.gitHubService.getFileContent(riceJsonPath);
-
-      if (!metadataContent) {
+      // 1. Check if rice exists in Supabase
+      const rice = await this.supabaseService.getRiceBySlug(slug);
+      if (!rice) {
         throw new NotFoundException('Rice not found');
       }
 
-      // 2. Delete rice.json from GitHub
+      // 2. Delete metadata from Supabase
+      await this.supabaseService.deleteRice(slug);
+
+      // 3. Delete rice.json from GitHub
+      const riceJsonPath = `rices/${slug}/rice.json`;
       await this.gitHubService.deleteFile(
         riceJsonPath,
-        `[MODERATION] Remove rice ${identifier}`,
+        `[MODERATION] Remove rice ${slug}`,
       );
 
-      // 3. List and delete uploaded files (if any)
-      const uploadedFilesPath = `rices/${identifier}`;
+      // 4. List and delete uploaded files from GitHub (if any)
+      const uploadedFilesPath = `rices/${slug}`;
       const files =
         await this.gitHubService.listFilesInDirectory(uploadedFilesPath);
 
       for (const file of files) {
         if (file !== 'rice.json') {
-          const filePath = `rices/${identifier}/${file}`;
+          const filePath = `rices/${slug}/${file}`;
           await this.gitHubService.deleteFile(
             filePath,
-            `[MODERATION] Remove file ${file} from rice ${identifier}`,
+            `[MODERATION] Remove file ${file} from rice ${slug}`,
           );
         }
       }
     } catch (error) {
-      if (isOctokitResponseError(error)) {
-        if (error.status === 404) {
-          throw new NotFoundException('Rice not found');
-        }
-        if (error.status === 401 || error.status === 403) {
-          throw new UnauthorizedException('Invalid token');
-        }
-      }
       console.error('Error removing rice by moderation:', error);
-      throw new Error('Failed to remove rice by moderation');
-    }
-  }
-
-  /**
-   * List files in a specific directory in GitHub
-   */
-  private async listFilesInDirectory(pathInRepo: string): Promise<string[]> {
-    try {
-      return await this.gitHubService.listFilesInDirectory(pathInRepo);
-    } catch (error) {
-      if (isOctokitResponseError(error) && error.status === 404) {
-        return [];
+      if (error instanceof NotFoundException) {
+        throw error;
       }
-      console.error(`Error listing files in ${pathInRepo}:`, error);
-      throw new Error('Failed to list files in directory');
+      throw new Error('Failed to remove rice by moderation');
     }
   }
 }

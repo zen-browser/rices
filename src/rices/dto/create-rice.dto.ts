@@ -1,7 +1,9 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class CreateRiceDto {
-  @IsOptional()
   @IsString()
-  name?: string;
+  name!: string;
+
+  @IsString()
+  content!: string;
 }

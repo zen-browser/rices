@@ -6,7 +6,6 @@ import {
   Delete,
   Param,
   Body,
-  UploadedFile,
   UseInterceptors,
   Headers,
   HttpCode,
@@ -23,8 +22,8 @@ import {
   ApiOperation,
   ApiResponse,
   ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('rices')
 @Controller('rices')
@@ -34,45 +33,57 @@ export class RicesController {
   @ApiOperation({ summary: 'Upload a new Rice' })
   @ApiResponse({ status: 201, description: 'Rice successfully created.' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Data required to create a rice',
+    schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'Name of the rice',
+          example: 'My First Rice',
+        },
+        content: {
+          type: 'string',
+          description: 'The JSON content to upload',
+        },
+      },
+    },
+  })
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
-  async createRice(
-    @Body() createRiceDto: CreateRiceDto,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    return this.ricesService.create(createRiceDto, file);
+  async createRice(@Body() createRiceDto: CreateRiceDto) {
+    return this.ricesService.create(createRiceDto);
   }
 
   @ApiOperation({ summary: 'Get information about a Rice' })
   @ApiResponse({ status: 200, description: 'Returns metadata of the Rice.' })
-  @Get(':identifier')
-  async getRice(@Param('identifier') identifier: string) {
-    return this.ricesService.findOne(identifier);
+  @Get(':slug')
+  async getRice(@Param('slug') slug: string) {
+    return this.ricesService.findOne(slug);
   }
 
   @ApiOperation({ summary: 'Update an existing Rice' })
   @ApiResponse({ status: 200, description: 'Rice successfully updated.' })
   @ApiConsumes('multipart/form-data')
-  @Put(':identifier')
+  @Put(':slug')
   @UseInterceptors(FileInterceptor('file'))
   async updateRice(
-    @Param('identifier') identifier: string,
+    @Param('slug') slug: string,
     @Headers('x-rices-token') token: string,
     @Body() updateRiceDto: UpdateRiceDto,
-    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.ricesService.update(identifier, token, updateRiceDto, file);
+    return this.ricesService.update(slug, token, updateRiceDto);
   }
 
   @ApiOperation({ summary: 'Delete an existing Rice' })
   @ApiResponse({ status: 204, description: 'Rice successfully deleted.' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Delete(':identifier')
+  @Delete(':slug')
   async removeRice(
-    @Param('identifier') identifier: string,
+    @Param('slug') slug: string,
     @Headers('x-rices-token') token: string,
   ) {
-    await this.ricesService.remove(identifier, token);
+    await this.ricesService.remove(slug, token);
     return;
   }
 
@@ -86,9 +97,9 @@ export class RicesController {
   })
   @ApiResponse({ status: 204, description: 'Rice deleted by moderation.' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Delete('moderate/delete/:identifier')
+  @Delete('moderate/delete/:slug')
   async removeRiceByModerator(
-    @Param('identifier') identifier: string,
+    @Param('slug') slug: string,
     @Headers('x-moderation-secret') moderationSecret: string,
   ) {
     // Verify the secret
@@ -97,7 +108,7 @@ export class RicesController {
     }
 
     // Call the service to delete without a token
-    await this.ricesService.moderateRemove(identifier);
+    await this.ricesService.moderateRemove(slug);
     return;
   }
 }

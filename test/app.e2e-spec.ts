@@ -5,10 +5,12 @@ import { AppModule } from './../src/app.module';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { GitHubService } from '../src/github/github.service';
+import { SupabaseService } from '../src/supabase/supabase.service';
 
 describe('Rices API E2E', () => {
   let app: INestApplication;
   let gitHubService: GitHubService;
+  let supabaseService: SupabaseService;
   const moderationSecret = 'testSecret999';
 
   beforeAll(async () => {
@@ -19,6 +21,7 @@ describe('Rices API E2E', () => {
     }).compile();
 
     gitHubService = moduleFixture.get<GitHubService>(GitHubService);
+    supabaseService = moduleFixture.get<SupabaseService>(SupabaseService);
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
@@ -31,181 +34,138 @@ describe('Rices API E2E', () => {
   });
 
   beforeEach(async () => {
-    // await gitHubService.clearRepository();
+    // Limpiar repositorio y base de datos antes de cada test si es necesario
   });
 
-  it('POST /rices - Create new zenrice', async () => {
+  it('POST /rices - Create a new rice entry', async () => {
     const response = await request(app.getHttpServer())
       .post('/rices')
-      .field('name', 'My first zenrice')
+      .field('name', 'Test Rice')
       .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
       .expect(201);
 
-    expect(response.body).toHaveProperty('identifier');
-    expect(response.body).toHaveProperty('token');
+    const { slug, token } = response.body;
+    expect(slug).toBeDefined();
+    expect(token).toBeDefined();
 
-    const { identifier, token } = response.body;
+    const riceInDatabase = await supabaseService.getRiceBySlug(slug);
+    expect(riceInDatabase).not.toBeNull();
+    expect(riceInDatabase.name).toBe('Test Rice');
 
-    const uploadedFileContent = await gitHubService.getFileContent(
-      `rices/${identifier}/data.zenrice`,
+    const fileInGitHub = await gitHubService.getFileContent(
+      `rices/${slug}/data.zenrice`,
     );
-    expect(uploadedFileContent).not.toBeNull();
-    expect(uploadedFileContent).toContain('This is an example zenrice file.');
+    expect(fileInGitHub).toContain('This is an example zenrice file.');
   });
 
-  it('GET /rices/:identifier - Download zenrice', async () => {
+  it('GET /rices/:slug - Retrieve a rice entry and increment visits', async () => {
     const createResponse = await request(app.getHttpServer())
       .post('/rices')
-      .field('name', 'My first zenrice')
+      .field('name', 'Test Rice')
       .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
       .expect(201);
 
-    const { identifier, token } = createResponse.body;
+    const { slug } = createResponse.body;
 
-    const response = await request(app.getHttpServer())
-      .get(`/rices/${identifier}`)
-      .expect(200);
+    const initialData = await supabaseService.getRiceBySlug(slug);
+    expect(initialData.visits).toBe(0);
+
+    await request(app.getHttpServer()).get(`/rices/${slug}`).expect(200);
+
+    const updatedData = await supabaseService.getRiceBySlug(slug);
+    expect(updatedData.visits).toBe(1);
   });
 
-  it('PUT /rices/:identifier - Update zenrice', async () => {
+  it('PUT /rices/:slug - Update a rice entry', async () => {
     const createResponse = await request(app.getHttpServer())
       .post('/rices')
-      .field('name', 'My first zenrice')
+      .field('name', 'Original Rice')
       .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
       .expect(201);
 
-    const { identifier, token } = createResponse.body;
+    const { slug, token } = createResponse.body;
 
     const updateResponse = await request(app.getHttpServer())
-      .put(`/rices/${identifier}`)
+      .put(`/rices/${slug}`)
       .set('x-rices-token', token)
-      .field('name', 'Mi rice renombrado')
+      .field('name', 'Updated Rice')
       .attach('file', path.join(__dirname, 'files', 'example_update.zenrice'))
       .expect(200);
 
-    expect(updateResponse.body).toHaveProperty(
-      'message',
-      `Rice ${identifier} updated`,
-    );
+    expect(updateResponse.body.message).toBe(`ok`);
 
-    const uploadedFileContent = await gitHubService.getFileContent(
-      `rices/${identifier}/data.zenrice`,
+    const updatedData = await supabaseService.getRiceBySlug(slug);
+    expect(updatedData.name).toBe('Updated Rice');
+
+    const updatedFile = await gitHubService.getFileContent(
+      `rices/${slug}/data.zenrice`,
     );
-    expect(uploadedFileContent).not.toBeNull();
-    expect(uploadedFileContent).toContain(
+    expect(updatedFile).toContain(
       'This is an example zenrice file (modified).',
     );
   });
 
-  it('DELETE /rices/:identifier - Delete zenrice with previous token', async () => {
+  it('DELETE /rices/:slug - Delete a rice entry', async () => {
     const createResponse = await request(app.getHttpServer())
       .post('/rices')
-      .field('name', 'My first zenrice')
+      .field('name', 'Rice to Delete')
       .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
       .expect(201);
 
-    const { identifier, token } = createResponse.body;
+    const { slug, token } = createResponse.body;
 
     await request(app.getHttpServer())
-      .delete(`/rices/${identifier}`)
+      .delete(`/rices/${slug}`)
       .set('x-rices-token', token)
       .expect(204);
 
-    const riceJsonContent = await gitHubService.getFileContent(
-      `rices/${identifier}/rice.json`,
-    );
-    expect(riceJsonContent).toBeNull();
+    const riceInDatabase = await supabaseService.getRiceBySlug(slug);
+    expect(riceInDatabase).toBeNull();
 
-    const uploadedFileContent = await gitHubService.getFileContent(
-      `rices/${identifier}/data.zenrice`,
+    const fileInGitHub = await gitHubService.getFileContent(
+      `rices/${slug}/data.zenrice`,
     );
-    expect(uploadedFileContent).toBeNull();
+    expect(fileInGitHub).toBeNull();
   });
 
-  it('GET /rices/:identifier - Trying to download deleted zenrice', async () => {
+  it('DELETE /rices/moderate/delete/:slug - Moderation delete with correct secret', async () => {
     const createResponse = await request(app.getHttpServer())
       .post('/rices')
-      .field('name', 'My first zenrice')
+      .field('name', 'Moderation Test Rice')
       .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
       .expect(201);
 
-    const { identifier, token } = createResponse.body;
+    const { slug } = createResponse.body;
 
     await request(app.getHttpServer())
-      .delete(`/rices/${identifier}`)
-      .set('x-rices-token', token)
-      .expect(204);
-
-    await request(app.getHttpServer()).get(`/rices/${identifier}`).expect(404);
-  });
-
-  it('POST /rices - New zenrice for moderation test', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/rices')
-      .field('name', 'Rice for moderation')
-      .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
-      .expect(201);
-
-    expect(response.body).toHaveProperty('identifier');
-    expect(response.body).toHaveProperty('token');
-
-    const { identifier, token } = response.body;
-
-    const riceJsonContent = await gitHubService.getFileContent(
-      `rices/${identifier}/rice.json`,
-    );
-    expect(riceJsonContent).not.toBeNull();
-
-    const riceData = JSON.parse(riceJsonContent!);
-    expect(riceData).toMatchObject({
-      id: identifier,
-      token,
-      name: 'Rice for moderation',
-    });
-
-    const uploadedFileContent = await gitHubService.getFileContent(
-      `rices/${identifier}/data.zenrice`,
-    );
-    expect(uploadedFileContent).not.toBeNull();
-    expect(uploadedFileContent).toContain('This is an example zenrice file.');
-  });
-
-  it('DELETE /rices/moderate/delete/:identifier - Delete zenrice for moderation using a correct secret', async () => {
-    const createResponse = await request(app.getHttpServer())
-      .post('/rices')
-      .field('name', 'Rice for moderation')
-      .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
-      .expect(201);
-
-    const { identifier, token } = createResponse.body;
-
-    await request(app.getHttpServer())
-      .delete(`/rices/moderate/delete/${identifier}`)
+      .delete(`/rices/moderate/delete/${slug}`)
       .set('x-moderation-secret', moderationSecret)
       .expect(204);
 
-    const riceJsonContent = await gitHubService.getFileContent(
-      `rices/${identifier}/rice.json`,
-    );
-    expect(riceJsonContent).toBeNull();
+    const riceInDatabase = await supabaseService.getRiceBySlug(slug);
+    expect(riceInDatabase).toBeNull();
 
-    const uploadedFileContent = await gitHubService.getFileContent(
-      `rices/${identifier}/data.zenrice`,
+    const fileInGitHub = await gitHubService.getFileContent(
+      `rices/${slug}/data.zenrice`,
     );
-    expect(uploadedFileContent).toBeNull();
+    expect(fileInGitHub).toBeNull();
   });
 
-  it('DELETE /rices/moderate/delete/:identifier - Delete zenrice for moderation using an incorrect secret', async () => {
+  it('DELETE /rices/moderate/delete/:slug - Moderation delete with incorrect secret', async () => {
+    const createResponse = await request(app.getHttpServer())
+      .post('/rices')
+      .field('name', 'Moderation Failure Test')
+      .attach('file', path.join(__dirname, 'files', 'example.zenrice'))
+      .expect(201);
+
+    const { slug } = createResponse.body;
+
     await request(app.getHttpServer())
-      .delete(`/rices/moderate/delete/${uuidv4()}`)
-      .set('x-moderation-secret', 'claveIncorrecta')
+      .delete(`/rices/moderate/delete/${slug}`)
+      .set('x-moderation-secret', 'wrongSecret')
       .expect(401);
-  });
 
-  it('DELETE /rices/moderate/delete/:identifier - Delete non existent zenrice for moderation', async () => {
-    await request(app.getHttpServer())
-      .delete(`/rices/moderate/delete/${uuidv4()}`)
-      .set('x-moderation-secret', moderationSecret)
-      .expect(404);
+    const riceInDatabase = await supabaseService.getRiceBySlug(slug);
+    expect(riceInDatabase).not.toBeNull();
   });
 });

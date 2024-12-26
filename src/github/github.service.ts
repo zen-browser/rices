@@ -146,9 +146,7 @@ export class GitHubService implements OnModuleInit {
             branch: this.defaultBranch,
           });
 
-          this.logger.log(
-            `File ${filePath} created/updated successfully.`,
-          );
+          this.logger.log(`File ${filePath} created/updated successfully.`);
           return;
         } catch (error: any) {
           if (error.status === 409 && attempt < retries) {
@@ -241,7 +239,9 @@ export class GitHubService implements OnModuleInit {
           }
 
           if (isOctokitResponseError(error) && error.status === 404) {
-            this.logger.warn(`The file ${filePath} does not exist in the repository.`);
+            this.logger.warn(
+              `The file ${filePath} does not exist in the repository.`,
+            );
             return;
           }
 
@@ -330,9 +330,7 @@ export class GitHubService implements OnModuleInit {
           `Error listing files in ${directoryPath}: ${error.message} (Status: ${error.status})`,
         );
       } else {
-        this.logger.error(
-          `Error listing files in ${directoryPath}: ${error}`,
-        );
+        this.logger.error(`Error listing files in ${directoryPath}: ${error}`);
       }
       throw error;
     }
@@ -434,9 +432,7 @@ export class GitHubService implements OnModuleInit {
    */
   private async lockDirectory(directoryPath: string): Promise<void> {
     while (this.directoryLocks.get(directoryPath)) {
-      this.logger.warn(
-        `Directory ${directoryPath} is locked. Waiting...`,
-      );
+      this.logger.warn(`Directory ${directoryPath} is locked. Waiting...`);
       await this.delay(100); // Wait 100ms before retrying
     }
     this.directoryLocks.set(directoryPath, true);
