@@ -35,6 +35,13 @@ export class RicesService {
         throw new BadRequestException('The request body must be a string.');
       }
 
+      try {
+        this.validateJsonStructure(content);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
+        throw new BadRequestException('Invalid json request');
+      }
+
       // Validate lengths
       if (name.length > 75) {
         throw new BadRequestException(
@@ -49,13 +56,11 @@ export class RicesService {
       }
 
       // Parse version and OS from User-Agent
-      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d+) \((.+)\)/;
+      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d.\d+) \((.+)\)/;
       const match = userAgent.match(userAgentRegex);
 
       if (!match) {
-        throw new BadRequestException(
-          'Invalid User-Agent format. Expected format: ZenBrowser/<version> (<OS>).',
-        );
+        throw new BadRequestException('Invalid request');
       }
 
       const [, version, os] = match;
@@ -80,9 +85,16 @@ export class RicesService {
         );
       }
 
-      const slug = `${generateSlug(name)}-${uuidv4()}`;
-      const token = uuidv4();
+      let slug: string;
+      try {
+        slug = `${generateSlug(name)}-${uuidv4()}`;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
+        // If generateSlug throws an error, rethrow as a BadRequestException
+        throw new BadRequestException(`Invalid name provided`);
+      }
 
+      const token = uuidv4();
       const encodedContent = Buffer.from(content).toString('base64');
 
       const metadata = {
@@ -154,13 +166,18 @@ export class RicesService {
       }
 
       // Parse version and OS from User-Agent
-      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d+) \((.+)\)/;
+      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d.\d+) \((.+)\)/;
       const match = userAgent.match(userAgentRegex);
 
       if (!match) {
-        throw new BadRequestException(
-          'Invalid User-Agent format. Expected format: ZenBrowser/<version> (<OS>).',
-        );
+        throw new BadRequestException('Invalid request');
+      }
+
+      try {
+        this.validateJsonStructure(content);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
+        throw new BadRequestException('Invalid json request');
       }
 
       const [, version, os] = match;
@@ -279,5 +296,40 @@ export class RicesService {
       }
       throw new Error('Failed to remove rice by moderation');
     }
+  }
+
+  validateJsonStructure(jsonString: string): boolean {
+    const requiredKeys: string[] = [
+      'userChrome',
+      'userContent',
+      'enabledMods',
+      'preferences',
+      'workspaceThemes',
+    ];
+
+    let json: Record<string, unknown>;
+
+    // Validate JSON string
+    try {
+      json = JSON.parse(jsonString);
+    } catch {
+      throw new BadRequestException('Invalid JSON string.');
+    }
+
+    // Ensure the parsed JSON is an object
+    if (typeof json !== 'object' || json === null) {
+      throw new BadRequestException('The parsed JSON is not a valid object.');
+    }
+
+    // Check for missing keys
+    const missingKeys = requiredKeys.filter((key) => !(key in json));
+
+    if (missingKeys.length > 0) {
+      throw new BadRequestException(
+        `The JSON is missing the following required keys: ${missingKeys.join(', ')}`,
+      );
+    }
+
+    return true;
   }
 }
