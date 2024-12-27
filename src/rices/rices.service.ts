@@ -10,6 +10,8 @@ import { generateSlug } from './utils/slug.util';
 import { GitHubService } from '../github/github.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
+const userAgentRegex = /ZenBrowser\/(\d+\.\d\w\.\d) \((.+)\)/;
+
 @Injectable()
 export class RicesService {
   constructor(
@@ -25,9 +27,7 @@ export class RicesService {
       const userAgent = headers['user-agent'];
 
       if (!name || !author || !userAgent) {
-        throw new BadRequestException(
-          'Missing required headers: X-Zen-Rice-Name, X-Zen-Rice-Author, and User-Agent are mandatory.',
-        );
+        throw new BadRequestException('Rice name and author are required!');
       }
 
       // Validate content
@@ -56,7 +56,6 @@ export class RicesService {
       }
 
       // Parse version and OS from User-Agent
-      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d.\d+) \((.+)\)/;
       const match = userAgent.match(userAgentRegex);
 
       if (!match) {
@@ -157,7 +156,7 @@ export class RicesService {
   ) {
     try {
       // Extract fields from headers
-      const userAgent = headers['user-agent'];
+      const userAgent = headers['User-Agent'];
 
       if (!userAgent) {
         throw new BadRequestException(
@@ -166,7 +165,8 @@ export class RicesService {
       }
 
       // Parse version and OS from User-Agent
-      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d.\d+) \((.+)\)/;
+      // It must have the following format:
+      // example version: 1.0.2-b.1
       const match = userAgent.match(userAgentRegex);
 
       if (!match) {
