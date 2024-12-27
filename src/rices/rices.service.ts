@@ -10,7 +10,7 @@ import { generateSlug } from './utils/slug.util';
 import { GitHubService } from '../github/github.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
-const userAgentRegex = /ZenBrowser\/(\d+\.\d\w\.\d) \((.+)\)/;
+const userAgentRegex = /ZenBrowser\/(\d+\.\d\w?\.\d) \((.+)\)/;
 
 @Injectable()
 export class RicesService {
