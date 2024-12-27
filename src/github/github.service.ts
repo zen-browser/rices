@@ -337,6 +337,67 @@ export class GitHubService implements OnModuleInit {
   }
 
   /**
+   * Deletes an empty folder from the repository.
+   * Assumes the folder is already empty.
+   * @param folderPath Path of the folder in the repository.
+   * @param commitMessage Commit message for the deletion.
+   */
+  async deleteFolder(folderPath: string, commitMessage: string): Promise<void> {
+    try {
+      // GitHub does not support direct folder deletion; instead, ensure no files remain
+      const files = await this.listFilesInDirectory(folderPath);
+
+      if (files.length > 0) {
+        throw new Error(`Folder ${folderPath} is not empty. Cannot delete.`);
+      }
+
+      // GitHub API requires at least a dummy file like .gitkeep to keep directories
+      const gitkeepPath = `${folderPath}/.gitkeep`;
+      try {
+        const { data: existingFile } = await this.octokit.repos.getContent({
+          owner: this.repoOwner,
+          repo: this.repoName,
+          path: gitkeepPath,
+          ref: this.defaultBranch,
+        });
+
+        if (!('sha' in existingFile)) {
+          throw new Error(
+            `The .gitkeep file in ${folderPath} does not have a valid SHA`,
+          );
+        }
+
+        const sha = existingFile.sha;
+
+        // Delete the .gitkeep file
+        await this.octokit.repos.deleteFile({
+          owner: this.repoOwner,
+          repo: this.repoName,
+          path: gitkeepPath,
+          message: commitMessage,
+          sha,
+          branch: this.defaultBranch,
+        });
+
+        this.logger.log(`Folder ${folderPath} deleted successfully.`);
+      } catch (error: any) {
+        if (isOctokitResponseError(error) && error.status === 404) {
+          this.logger.warn(
+            `The .gitkeep file in ${folderPath} does not exist.`,
+          );
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error deleting folder ${folderPath}: ${error}`);
+      throw new InternalServerErrorException(
+        `Failed to delete folder: ${error}`,
+      );
+    }
+  }
+
+  /**
    * Clears all files in the GitHub repository.
    * Useful for cleaning the state before running tests.
    */

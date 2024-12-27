@@ -1,6 +1,6 @@
 @baseUrl = http://localhost:3000
-@previous_slug = cool-zenrice-aurora-e8abd40d-8657-4ddd-99c5-912cced67497
-@previous_token = 2ce5c580-46e5-4a28-adff-30ce5662f29d
+@previous_slug = cool-zenrice-aurora2-b970a742-789c-4349-8a4d-da63c8bbe77d
+@previous_token = 03fbfdb4-d3a5-4d64-8740-feac7d32e7a8
 
 DELETE {{baseUrl}}/rices/{{previous_slug}}
 x-rices-token: {{previous_token}}

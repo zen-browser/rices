@@ -55,7 +55,7 @@ export class SupabaseService {
         `Failed to fetch rice with slug ${slug}: ${error.message}`,
         error.details,
       );
-      throw new Error(`Failed to fetch rice: ${error.message}`);
+      return null;
     }
     return data;
   }

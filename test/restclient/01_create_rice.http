@@ -11,7 +11,9 @@ POST {{baseUrl}}/rices
 Content-Type: application/json
 
 {
-  "name": "cool-zenrice-aurora",
+  "name": "cool-zenrice-aurora2",
+  "version": "1.0.0",
+  "os": "EndeavourOS x86_64",
   "content": "{'key':'value','description':'Example content'}"
 }
 

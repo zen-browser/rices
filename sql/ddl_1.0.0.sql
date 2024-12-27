@@ -1,7 +1,9 @@
--- DROP TABLE IF EXISTS rices;
+--DROP TABLE IF EXISTS rices;
 
 CREATE TABLE rices (
     id UUID NOT NULL,                      -- Unique identifier
+    version VARCHAR(10) NOT NULL,          -- Data version
+    os VARCHAR(30) NOT NULL,               -- Operating system
     slug VARCHAR(75) NOT NULL,             -- Unique user-friendly identifier
     name VARCHAR(75) NOT NULL,             -- Name of the rice
     token UUID NOT NULL,                   -- Unique authorization token
@@ -13,7 +15,6 @@ CREATE TABLE rices (
     UNIQUE (slug),                         -- Ensure slug is unique
     UNIQUE (name)                          -- Ensure name is unique
 );
-
 
 CREATE OR REPLACE FUNCTION increment_visits(slug_param TEXT)
 RETURNS VOID AS $$

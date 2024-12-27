@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:3000
-@previous_slug = cool-zenrice-aurora-265e3881-f9de-4bbf-bb22-b9c37dbf04bc
+@previous_slug = cool-zenrice-aurora-e99096ae-00da-4d54-9a47-53b20eb57647
+
 
 GET {{baseUrl}}/rices/{{previous_slug}}

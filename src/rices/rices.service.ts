@@ -3,6 +3,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { CreateRiceDto } from './dto/create-rice.dto';
 import { UpdateRiceDto } from './dto/update-rice.dto';
@@ -19,56 +20,76 @@ export class RicesService {
   ) {}
 
   async create(createRiceDto: CreateRiceDto) {
-    // Check if a rice with the same name already exists
-    const existingRice = await this.supabaseService.getRiceByName(
-      createRiceDto.name,
-    );
-    if (existingRice) {
-      throw new ConflictException(
-        `A rice with the name '${createRiceDto.name}' already exists.`,
+    try {
+      // Ensure required fields are present
+      if (!createRiceDto.name || !createRiceDto.version || !createRiceDto.os) {
+        throw new BadRequestException(
+          'Missing required fields: name, version, and os are mandatory.',
+        );
+      }
+
+      // Check if a rice with the same name already exists
+      const existingRice = await this.supabaseService.getRiceByName(
+        createRiceDto.name,
       );
+      if (existingRice) {
+        throw new ConflictException(
+          `A rice with the name '${createRiceDto.name}' already exists.`,
+        );
+      }
+
+      const slug = createRiceDto.name
+        ? `${generateSlug(createRiceDto.name)}-${uuidv4()}`
+        : uuidv4();
+
+      const token = uuidv4();
+
+      const encodedContent = Buffer.from(
+        JSON.stringify(createRiceDto.content),
+      ).toString('base64');
+
+      const metadata = {
+        id: uuidv4(),
+        token,
+        name: createRiceDto.name,
+        version: createRiceDto.version,
+        os: createRiceDto.os,
+        slug: slug,
+        visits: 0,
+        level: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      // Insert metadata into Supabase
+      await this.supabaseService.insertRice(metadata);
+
+      if (createRiceDto.content) {
+        const uploadedFilePath = `rices/${slug}/data.zenrice`;
+        await this.gitHubService.createOrUpdateFile(
+          uploadedFilePath,
+          encodedContent,
+          `Add file createRiceDto.content to rice ${slug}`,
+        );
+      }
+
+      return { slug, token };
+    } catch (error) {
+      // Log the error for debugging
+      console.error('Error in create method:', error);
+
+      if (
+        error instanceof ConflictException ||
+        error instanceof BadRequestException
+      ) {
+        throw error; // Or create a custom response
+      } else if (error instanceof Error) {
+        // Extract a user-friendly message if possible, or log details
+        throw new Error(`Rice creation failed: ${error.message}`); // More informative error message
+      } else {
+        // Catch unexpected errors
+        throw new Error('Internal Server Error'); // Only for truly unexpected issues
+      }
     }
-
-    const slug = createRiceDto.name
-      ? `${generateSlug(createRiceDto.name)}-${uuidv4()}`
-      : uuidv4();
-
-    const token = uuidv4();
-
-    const encodedContent = Buffer.from(
-      JSON.stringify(createRiceDto.content),
-    ).toString('base64');
-
-    const metadata = {
-      id: uuidv4(),
-      token,
-      name: createRiceDto.name || null,
-      slug: slug,
-      visits: 0,
-      level: 0,
-      created_at: new Date().toISOString(),
-    };
-
-    await this.supabaseService.insertRice(metadata);
-
-    const metadataContent = JSON.stringify(metadata, null, 2);
-    const riceJsonPath = `rices/${slug}/rice.json`;
-    await this.gitHubService.createOrUpdateFile(
-      riceJsonPath,
-      metadataContent,
-      `Add rice ${slug}`,
-    );
-
-    if (createRiceDto.content) {
-      const uploadedFilePath = `rices/${slug}/data.zenrice`;
-      await this.gitHubService.createOrUpdateFile(
-        uploadedFilePath,
-        encodedContent,
-        `Add file createRiceDto.content to rice ${slug}`,
-      );
-    }
-
-    return { slug, token };
   }
 
   async findOne(slug: string) {
@@ -90,7 +111,7 @@ export class RicesService {
     // Remove unescaped double quotes at the beginning and end, if present
     const content = contentPrev.replace(/^"|"$/g, '');
 
-    return { slug, content };
+    return content;
   }
 
   async update(slug: string, token: string, updateRiceDto: UpdateRiceDto) {
@@ -111,6 +132,11 @@ export class RicesService {
       await this.supabaseService.getRiceBySlug(slug);
     if (!rice) throw new NotFoundException('Rice not found');
     if (rice.token !== token) throw new UnauthorizedException('Invalid token');
+    if (!updateRiceDto.content) {
+      throw new BadRequestException(
+        'Missing required fields: content is mandatory.',
+      );
+    }
 
     const updatedMetadata = {
       ...rice,
@@ -118,14 +144,6 @@ export class RicesService {
     };
 
     await this.supabaseService.updateRice(slug, updatedMetadata);
-
-    const metadataContent = JSON.stringify(updatedMetadata, null, 2);
-    const riceJsonPath = `rices/${slug}/rice.json`;
-    await this.gitHubService.createOrUpdateFile(
-      riceJsonPath,
-      metadataContent,
-      `Update rice ${slug}`,
-    );
 
     if (updateRiceDto.content) {
       const encodedContent = Buffer.from(
@@ -150,8 +168,25 @@ export class RicesService {
 
     await this.supabaseService.deleteRice(slug);
 
-    const riceJsonPath = `rices/${slug}/rice.json`;
-    await this.gitHubService.deleteFile(riceJsonPath, `Remove rice ${slug}`);
+    const folderPath = `rices/${slug}`;
+
+    // List all files in the folder
+    const files = await this.gitHubService.listFilesInDirectory(folderPath);
+
+    // Delete all files within the folder
+    for (const file of files) {
+      const filePath = `${folderPath}/${file}`;
+      await this.gitHubService.deleteFile(
+        filePath,
+        `Remove file ${file} in rice ${slug}`,
+      );
+    }
+
+    // Finally, remove the folder itself
+    await this.gitHubService.deleteFolder(
+      folderPath,
+      `Remove folder ${folderPath}`,
+    );
   }
 
   /**
@@ -169,27 +204,30 @@ export class RicesService {
       // 2. Delete metadata from Supabase
       await this.supabaseService.deleteRice(slug);
 
-      // 3. Delete rice.json from GitHub
-      const riceJsonPath = `rices/${slug}/rice.json`;
+      // 3. Delete data.zenrice from GitHub
+      const riceJsonPath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.deleteFile(
         riceJsonPath,
         `[MODERATION] Remove rice ${slug}`,
       );
 
       // 4. List and delete uploaded files from GitHub (if any)
-      const uploadedFilesPath = `rices/${slug}`;
-      const files =
-        await this.gitHubService.listFilesInDirectory(uploadedFilesPath);
+      const filesPath = `rices/${slug}`;
+      const files = await this.gitHubService.listFilesInDirectory(filesPath);
 
       for (const file of files) {
-        if (file !== 'rice.json') {
-          const filePath = `rices/${slug}/${file}`;
-          await this.gitHubService.deleteFile(
-            filePath,
-            `[MODERATION] Remove file ${file} from rice ${slug}`,
-          );
-        }
+        const filePath = `rices/${slug}/${file}`;
+        await this.gitHubService.deleteFile(
+          filePath,
+          `[MODERATION] Remove file ${file} from rice ${slug}`,
+        );
       }
+
+      // 4. Finally, remove the folder itself
+      await this.gitHubService.deleteFolder(
+        filesPath,
+        `[MODERATION] Remove folder ${filesPath}`,
+      );
     } catch (error) {
       console.error('Error removing rice by moderation:', error);
       if (error instanceof NotFoundException) {
