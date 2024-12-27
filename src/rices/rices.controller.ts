@@ -6,24 +6,14 @@ import {
   Delete,
   Param,
   Body,
-  UseInterceptors,
   Headers,
   HttpCode,
   HttpStatus,
   UnauthorizedException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { RicesService } from './rices.service';
-import { CreateRiceDto } from './dto/create-rice.dto';
-import { UpdateRiceDto } from './dto/update-rice.dto';
 
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiConsumes,
-  ApiBody,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 
 @ApiTags('rices')
 @Controller('rices')
@@ -32,47 +22,72 @@ export class RicesController {
 
   @ApiOperation({ summary: 'Upload a new Rice' })
   @ApiResponse({ status: 201, description: 'Rice successfully created.' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    description: 'Data required to create a rice',
-    schema: {
-      type: 'object',
-      properties: {
-        name: {
-          type: 'string',
-          description: 'Name of the rice',
-          example: 'My First Rice',
-        },
-        content: {
-          type: 'string',
-          description: 'The JSON content to upload',
-        },
-      },
-    },
+  @ApiHeader({
+    name: 'X-Zen-Rice-Name',
+    description: 'Name of the rice',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'X-Zen-Rice-Author',
+    description: 'Author of the rice',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'User-Agent',
+    description: 'User-Agent in the format ZenBrowser/<version> (<OS>)',
+    required: true,
   })
   @Post()
-  async createRice(@Body() createRiceDto: CreateRiceDto) {
-    return this.ricesService.create(createRiceDto);
+  async createRice(
+    @Body() content: string,
+    @Headers() headers: Record<string, string>,
+  ) {
+    const contentString =
+      typeof content === 'string' ? content : JSON.stringify(content);
+    return this.ricesService.create(contentString, headers);
   }
 
   @ApiOperation({ summary: 'Get information about a Rice' })
   @ApiResponse({ status: 200, description: 'Returns metadata of the Rice.' })
   @Get(':slug')
+  /*************  ✨ Codeium Command ⭐  *************/
+  /**
+   * Retrieve metadata of a rice with the given slug.
+   * @param slug Slug of the rice.
+   * @returns Metadata of the rice if found, otherwise throws a NotFoundException.
+   */
+  /******  c6f70808-e78d-4b17-a285-d2fd79527659  *******/
   async getRice(@Param('slug') slug: string) {
     return this.ricesService.findOne(slug);
   }
 
   @ApiOperation({ summary: 'Update an existing Rice' })
   @ApiResponse({ status: 200, description: 'Rice successfully updated.' })
-  @ApiConsumes('multipart/form-data')
+  @ApiHeader({
+    name: 'X-Zen-Rice-Name',
+    description: 'Name of the rice',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'X-Zen-Rice-Author',
+    description: 'Author of the rice',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'User-Agent',
+    description: 'User-Agent in the format ZenBrowser/<version> (<OS>)',
+    required: true,
+  })
   @Put(':slug')
-  @UseInterceptors(FileInterceptor('file'))
   async updateRice(
     @Param('slug') slug: string,
-    @Headers('x-rices-token') token: string,
-    @Body() updateRiceDto: UpdateRiceDto,
+    @Body() content: string,
+    @Headers() headers: Record<string, string>,
+    @Headers('x-zen-rices-token') token: string,
   ) {
-    return this.ricesService.update(slug, token, updateRiceDto);
+    const contentString =
+      typeof content === 'string' ? content : JSON.stringify(content);
+    return this.ricesService.update(slug, token, contentString, headers);
   }
 
   @ApiOperation({ summary: 'Delete an existing Rice' })
@@ -81,15 +96,12 @@ export class RicesController {
   @Delete(':slug')
   async removeRice(
     @Param('slug') slug: string,
-    @Headers('x-rices-token') token: string,
+    @Headers('x-zen-rices-token') token: string,
   ) {
     await this.ricesService.remove(slug, token);
     return;
   }
 
-  // =========================================
-  // NEW ENDPOINT FOR MODERATION DELETION
-  // =========================================
   @ApiOperation({
     summary: 'Forcefully delete a Rice (moderation)',
     description:
@@ -102,12 +114,9 @@ export class RicesController {
     @Param('slug') slug: string,
     @Headers('x-moderation-secret') moderationSecret: string,
   ) {
-    // Verify the secret
     if (moderationSecret !== process.env.MODERATION_SECRET) {
       throw new UnauthorizedException('Invalid moderation secret');
     }
-
-    // Call the service to delete without a token
     await this.ricesService.moderateRemove(slug);
     return;
   }

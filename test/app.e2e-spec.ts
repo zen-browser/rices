@@ -87,7 +87,7 @@ describe('Rices API E2E', () => {
 
     const updateResponse = await request(app.getHttpServer())
       .put(`/rices/${slug}`)
-      .set('x-rices-token', token)
+      .set('x-zen-rices-token', token)
       .field('name', 'Updated Rice')
       .attach('file', path.join(__dirname, 'files', 'example_update.zenrice'))
       .expect(200);
@@ -116,7 +116,7 @@ describe('Rices API E2E', () => {
 
     await request(app.getHttpServer())
       .delete(`/rices/${slug}`)
-      .set('x-rices-token', token)
+      .set('x-zen-rices-token', token)
       .expect(204);
 
     const riceInDatabase = await supabaseService.getRiceBySlug(slug);

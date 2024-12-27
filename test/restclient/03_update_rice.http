@@ -1,19 +1,78 @@
 @baseUrl = http://localhost:3000
-@previous_slug = cool-zenrice-aurora-ef732cbc-fdde-4f76-b4e3-cff0ec8b6f39
-@previous_token = b406f962-5c51-43a9-8382-40e0983a46e7
-
-# {
-#     "key": "value",
-#     "description": "Example updated content"
-# }
-
-# {'key':'value','description':'Example updated content'}
+@previous_slug = cool-zenrice-aurora-249dd7f2-d669-4d1f-892c-df4caa6fcbfe
+@previous_token = 528bb297-274f-4fe1-87f1-956b9b26e0df
 
 PUT {{baseUrl}}/rices/{{previous_slug}}
 Content-Type: application/json
-x-rices-token: {{previous_token}}
+x-zen-rices-token: {{previous_token}}
+X-Zen-Rice-Name: cool-zenrice-aurora
+X-Zen-Rice-Author: jhon@doe.com
+User-Agent: ZenBrowser/1.0.0 (EndeavourOS x86_64)
 
 {
-  "content": "{'key':'value','description':'Example updated content'}"
+  "userChrome": "",
+  "userContent": null,
+  "enabledMods": [
+    "5bb07b6e-c89f-4f4a-a0ed-e483cc535594",
+    "5bb07b6e-c89f-4f4a-a0ed-e483cc535594"
+  ],
+  "preferences": {
+    "theme.custom_menubutton.default": "Firefox",
+    "theme.custom_menubutton.custom": "url(chrome://branding/content/icon32.png)",
+    "zen.view.use-single-toolbar": true,
+    "zen.view.sidebar-expanded": true,
+    "zen.tabs.vertical.right-side": false,
+    "zen.view.experimental-no-window-controls": false,
+    "zen.view.hide-window-controls": true,
+    "browser.uiCustomization.state": "{\"placements\":{\"widget-overflow-fixed-list\":[],\"unified-extensions-area\":[\"ublock0_raymondhill_net-browser-action\",\"addon_darkreader_org-browser-action\",\"_7a7a4a92-a2a0-41d1-9fd7-1e92480d612d_-browser-action\",\"cookieautodelete_kennydo_com-browser-action\",\"tab-unloader-we_afnankhan-browser-action\"],\"nav-bar\":[\"back-button\",\"forward-button\",\"stop-reload-button\",\"customizableui-special-spring1\",\"urlbar-container\",\"customizableui-special-spring2\",\"wrapper-sidebar-button\",\"unified-extensions-button\"],\"toolbar-menubar\":[\"menubar-items\"],\"TabsToolbar\":[\"tabbrowser-tabs\"],\"vertical-tabs\":[],\"PersonalToolbar\":[\"personal-bookmarks\"],\"zen-sidebar-top-buttons\":[\"zen-sidepanel-button\"],\"zen-sidebar-icons-wrapper\":[\"zen-profile-button\",\"zen-workspaces-button\",\"downloads-button\"]},\"seen\":[\"_7a7a4a92-a2a0-41d1-9fd7-1e92480d612d_-browser-action\",\"developer-button\",\"cookieautodelete_kennydo_com-browser-action\",\"tab-unloader-we_afnankhan-browser-action\",\"addon_darkreader_org-browser-action\",\"ublock0_raymondhill_net-browser-action\"],\"dirtyAreaCache\":[\"unified-extensions-area\",\"nav-bar\",\"toolbar-menubar\",\"TabsToolbar\",\"vertical-tabs\",\"PersonalToolbar\",\"zen-sidebar-top-buttons\",\"zen-sidebar-icons-wrapper\"],\"currentVersion\":20,\"newElementCount\":2}"
+  },
+  "workspaceThemes": [
+    {
+      "type": "gradient",
+      "gradientColors": [
+        {
+          "c": [
+            124,
+            133,
+            255
+          ],
+          "isCustom": false
+        },
+        {
+          "c": [
+            69,
+            255,
+            86
+          ],
+          "isCustom": false
+        }
+      ],
+      "opacity": 0.5,
+      "rotation": 45,
+      "texture": 0
+    },
+    {
+      "type": "gradient",
+      "gradientColors": [
+        {
+          "c": [
+            255,
+            133,
+            65
+          ],
+          "isCustom": false
+        }
+      ],
+      "opacity": 0.6,
+      "rotation": 45,
+      "texture": null
+    },
+    {
+      "type": "gradient",
+      "gradientColors": [],
+      "opacity": 0.5,
+      "rotation": 45,
+      "texture": null
+    }
+  ]
 }
-

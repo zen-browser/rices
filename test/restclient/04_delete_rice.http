@@ -3,4 +3,4 @@
 @previous_token = 03fbfdb4-d3a5-4d64-8740-feac7d32e7a8
 
 DELETE {{baseUrl}}/rices/{{previous_slug}}
-x-rices-token: {{previous_token}}
+x-zen-rices-token: {{previous_token}}

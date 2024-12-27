@@ -5,8 +5,6 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { CreateRiceDto } from './dto/create-rice.dto';
-import { UpdateRiceDto } from './dto/update-rice.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSlug } from './utils/slug.util';
 import { GitHubService } from '../github/github.service';
@@ -19,42 +17,82 @@ export class RicesService {
     private readonly supabaseService: SupabaseService,
   ) {}
 
-  async create(createRiceDto: CreateRiceDto) {
+  async create(content: string, headers: Record<string, string>) {
     try {
-      // Ensure required fields are present
-      if (!createRiceDto.name || !createRiceDto.version || !createRiceDto.os) {
+      // Validate headers
+      const name = headers['x-zen-rice-name'];
+      const author = headers['x-zen-rice-author'];
+      const userAgent = headers['user-agent'];
+
+      if (!name || !author || !userAgent) {
         throw new BadRequestException(
-          'Missing required fields: name, version, and os are mandatory.',
+          'Missing required headers: X-Zen-Rice-Name, X-Zen-Rice-Author, and User-Agent are mandatory.',
+        );
+      }
+
+      // Validate content
+      if (typeof content !== 'string') {
+        throw new BadRequestException('The request body must be a string.');
+      }
+
+      // Validate lengths
+      if (name.length > 75) {
+        throw new BadRequestException(
+          `The value of X-Zen-Rice-Name exceeds the maximum allowed length of 75 characters.`,
+        );
+      }
+
+      if (author.length > 100) {
+        throw new BadRequestException(
+          `The value of X-Zen-Rice-Author exceeds the maximum allowed length of 100 characters.`,
+        );
+      }
+
+      // Parse version and OS from User-Agent
+      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d+) \((.+)\)/;
+      const match = userAgent.match(userAgentRegex);
+
+      if (!match) {
+        throw new BadRequestException(
+          'Invalid User-Agent format. Expected format: ZenBrowser/<version> (<OS>).',
+        );
+      }
+
+      const [, version, os] = match;
+      // Validate version and OS lengths
+      if (version.length > 10) {
+        throw new BadRequestException(
+          `The version in User-Agent exceeds the maximum allowed length of 10 characters.`,
+        );
+      }
+
+      if (os.length > 30) {
+        throw new BadRequestException(
+          `The operating system in User-Agent exceeds the maximum allowed length of 30 characters.`,
         );
       }
 
       // Check if a rice with the same name already exists
-      const existingRice = await this.supabaseService.getRiceByName(
-        createRiceDto.name,
-      );
+      const existingRice = await this.supabaseService.getRiceByName(name);
       if (existingRice) {
         throw new ConflictException(
-          `A rice with the name '${createRiceDto.name}' already exists.`,
+          `A rice with the name '${name}' already exists.`,
         );
       }
 
-      const slug = createRiceDto.name
-        ? `${generateSlug(createRiceDto.name)}-${uuidv4()}`
-        : uuidv4();
-
+      const slug = `${generateSlug(name)}-${uuidv4()}`;
       const token = uuidv4();
 
-      const encodedContent = Buffer.from(
-        JSON.stringify(createRiceDto.content),
-      ).toString('base64');
+      const encodedContent = Buffer.from(content).toString('base64');
 
       const metadata = {
         id: uuidv4(),
         token,
-        name: createRiceDto.name,
-        version: createRiceDto.version,
-        os: createRiceDto.os,
-        slug: slug,
+        name,
+        author,
+        version,
+        os,
+        slug,
         visits: 0,
         level: 0,
         created_at: new Date().toISOString(),
@@ -63,32 +101,17 @@ export class RicesService {
       // Insert metadata into Supabase
       await this.supabaseService.insertRice(metadata);
 
-      if (createRiceDto.content) {
-        const uploadedFilePath = `rices/${slug}/data.zenrice`;
-        await this.gitHubService.createOrUpdateFile(
-          uploadedFilePath,
-          encodedContent,
-          `Add file createRiceDto.content to rice ${slug}`,
-        );
-      }
+      const uploadedFilePath = `rices/${slug}/data.zenrice`;
+      await this.gitHubService.createOrUpdateFile(
+        uploadedFilePath,
+        encodedContent,
+        `Add content to rice ${slug}`,
+      );
 
       return { slug, token };
     } catch (error) {
-      // Log the error for debugging
       console.error('Error in create method:', error);
-
-      if (
-        error instanceof ConflictException ||
-        error instanceof BadRequestException
-      ) {
-        throw error; // Or create a custom response
-      } else if (error instanceof Error) {
-        // Extract a user-friendly message if possible, or log details
-        throw new Error(`Rice creation failed: ${error.message}`); // More informative error message
-      } else {
-        // Catch unexpected errors
-        throw new Error('Internal Server Error'); // Only for truly unexpected issues
-      }
+      throw error;
     }
   }
 
@@ -114,57 +137,87 @@ export class RicesService {
     return content;
   }
 
-  async update(slug: string, token: string, updateRiceDto: UpdateRiceDto) {
-    /*************  ✨ Codeium Command ⭐  *************/
-    /**
-     * Updates the metadata and content of a rice entry identified by its slug.
-     *
-     * @param slug - The unique identifier for the rice entry.
-     * @param token - The authorization token to verify the request.
-     * @param updateRiceDto - Data Transfer Object containing fields to update.
-     *
-     * @returns A confirmation message indicating successful update.
-     *
-     * @throws NotFoundException - If the rice entry does not exist.
-     * @throws UnauthorizedException - If the provided token is invalid.
-     */
-    /******  bf5f61f3-c1dc-40a0-85e6-288824144ead  *******/ const rice =
-      await this.supabaseService.getRiceBySlug(slug);
-    if (!rice) throw new NotFoundException('Rice not found');
-    if (rice.token !== token) throw new UnauthorizedException('Invalid token');
-    if (!updateRiceDto.content) {
-      throw new BadRequestException(
-        'Missing required fields: content is mandatory.',
-      );
-    }
+  async update(
+    slug: string,
+    token: string,
+    content: string,
+    headers: Record<string, string>,
+  ) {
+    try {
+      // Extract fields from headers
+      const name = headers['x-zen-rice-name'];
+      const author = headers['x-zen-rice-author'];
+      const userAgent = headers['user-agent'];
 
-    const updatedMetadata = {
-      ...rice,
-      updated_at: new Date().toISOString(),
-    };
+      if (!name || !author || !userAgent) {
+        throw new BadRequestException(
+          'Missing required headers: X-Zen-Rice-Name, X-Zen-Rice-Author, and User-Agent are mandatory.',
+        );
+      }
 
-    await this.supabaseService.updateRice(slug, updatedMetadata);
+      // Parse version and OS from User-Agent
+      const userAgentRegex = /ZenBrowser\/(\d+\.\d+\.\d+) \((.+)\)/;
+      const match = userAgent.match(userAgentRegex);
 
-    if (updateRiceDto.content) {
-      const encodedContent = Buffer.from(
-        JSON.stringify(updateRiceDto.content),
-      ).toString('base64');
+      if (!match) {
+        throw new BadRequestException(
+          'Invalid User-Agent format. Expected format: ZenBrowser/<version> (<OS>).',
+        );
+      }
 
+      const [, version, os] = match;
+
+      // Check if the rice exists
+      const rice = await this.supabaseService.getRiceBySlug(slug);
+      if (!rice) {
+        throw new NotFoundException('Rice not found');
+      }
+
+      // Validate token, name, and author match the existing record
+      if (rice.token !== token) {
+        throw new UnauthorizedException('Invalid token.');
+      }
+
+      // Validate name and author match the existing record
+      if (rice.name !== name || rice.author !== author) {
+        throw new UnauthorizedException(
+          'Provided name and author do not match the existing record.',
+        );
+      }
+
+      const updatedMetadata = {
+        ...rice,
+        version,
+        os,
+        updated_at: new Date().toISOString(),
+      };
+
+      await this.supabaseService.updateRice(slug, updatedMetadata);
+
+      const encodedContent = Buffer.from(content).toString('base64');
       const uploadedFilePath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.createOrUpdateFile(
         uploadedFilePath,
         encodedContent,
-        `Update file updateRiceDto.content in rice ${slug}`,
+        `Update content in rice ${slug}`,
       );
-    }
 
-    return { message: `ok` };
+      return { message: `Rice ${slug} updated successfully.` };
+    } catch (error) {
+      console.error('Error in update method:', error);
+      throw error;
+    }
   }
 
   async remove(slug: string, token: string): Promise<void> {
     const rice = await this.supabaseService.getRiceBySlug(slug);
     if (!rice) throw new NotFoundException('Rice not found');
     if (rice.token !== token) throw new UnauthorizedException('Invalid token');
+
+    // Validate token, name, and author match the existing record
+    if (rice.token !== token) {
+      throw new UnauthorizedException('Invalid token.');
+    }
 
     await this.supabaseService.deleteRice(slug);
 
