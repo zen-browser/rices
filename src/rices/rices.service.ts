@@ -145,11 +145,9 @@ export class RicesService {
   ) {
     try {
       // Extract fields from headers
-      const name = headers['x-zen-rice-name'];
-      const author = headers['x-zen-rice-author'];
       const userAgent = headers['user-agent'];
 
-      if (!name || !author || !userAgent) {
+      if (!userAgent) {
         throw new BadRequestException(
           'Missing required headers: X-Zen-Rice-Name, X-Zen-Rice-Author, and User-Agent are mandatory.',
         );
@@ -176,13 +174,6 @@ export class RicesService {
       // Validate token, name, and author match the existing record
       if (rice.token !== token) {
         throw new UnauthorizedException('Invalid token.');
-      }
-
-      // Validate name and author match the existing record
-      if (rice.name !== name || rice.author !== author) {
-        throw new UnauthorizedException(
-          'Provided name and author do not match the existing record.',
-        );
       }
 
       const updatedMetadata = {
