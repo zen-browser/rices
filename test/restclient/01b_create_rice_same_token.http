@@ -1,9 +1,12 @@
 @baseUrl = http://localhost:3000
 
+@previous_token = 32af2ec5-b7f0-4c61-8c9a-e67edb3faad4
+
 POST {{baseUrl}}/rices
 Content-Type: application/json
-X-Zen-Rice-Name: cool-zenrice-test-base
+X-Zen-Rice-Name: cool-zenrice-test-base5
 X-Zen-Rice-Author: jhon@doe.com
+x-zen-rices-token: {{previous_token}}
 User-Agent: ZenBrowser/1.2b.0 (EndeavourOS x86_64)
 
 {

@@ -132,4 +132,18 @@ export class SupabaseService {
       throw new Error(`Failed to update rice level: ${error.message}`);
     }
   }
+
+  async countRicesByToken(token: string): Promise<number> {
+    const { data, error, count } = await this.supabase
+      .from('rices') // Nombre de tu tabla en Supabase
+      .select('*', { count: 'exact' })
+      .eq('token', token);
+
+    if (error) {
+      console.error('Error counting rices by token:', error);
+      throw new Error('Failed to count rices by token');
+    }
+
+    return count || 0;
+  }
 }

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSlug } from './utils/slug.util';
+import { ConfigService } from '@nestjs/config';
 import { GitHubService } from '../github/github.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -17,9 +18,14 @@ export class RicesService {
   constructor(
     private readonly gitHubService: GitHubService,
     private readonly supabaseService: SupabaseService,
+    private readonly configService: ConfigService,
   ) {}
 
-  async create(content: string, headers: Record<string, string>) {
+  async create(
+    content: string,
+    token: string | null,
+    headers: Record<string, string>,
+  ) {
     try {
       // Validate headers
       const name = headers['x-zen-rice-name'];
@@ -77,12 +83,12 @@ export class RicesService {
       }
 
       // Check if a rice with the same name already exists
-      const existingRice = await this.supabaseService.getRiceByName(name);
+      /*const existingRice = await this.supabaseService.getRiceByName(name);
       if (existingRice) {
         throw new ConflictException(
           `A rice with the name '${name}' already exists.`,
         );
-      }
+      }*/
 
       let slug: string;
       try {
@@ -93,7 +99,21 @@ export class RicesService {
         throw new BadRequestException(`Invalid name provided`);
       }
 
-      const token = uuidv4();
+      if (!token) {
+        token = uuidv4();
+      } else {
+        const tokenMaxCount = this.configService.get<number>(
+          'MAX_RICES_BY_TOKEN',
+          5,
+        );
+        const tokenCount = await this.supabaseService.countRicesByToken(token);
+        if (tokenCount >= tokenMaxCount) {
+          throw new ConflictException(
+            `The token '${token}' is already associated with 5 or more rices.`,
+          );
+        }
+      }
+
       const metadata = {
         id: uuidv4(),
         token,

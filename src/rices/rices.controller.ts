@@ -41,10 +41,11 @@ export class RicesController {
   async createRice(
     @Body() content: string,
     @Headers() headers: Record<string, string>,
+    @Headers('x-zen-rices-token') token: string,
   ) {
     const contentString =
       typeof content === 'string' ? content : JSON.stringify(content);
-    return this.ricesService.create(contentString, headers);
+    return this.ricesService.create(contentString, token, headers);
   }
 
   @ApiOperation({ summary: 'Get information about a Rice' })

@@ -12,9 +12,8 @@ CREATE TABLE rices (
     level INTEGER DEFAULT 0 NOT NULL,      -- Level: 0 (Public), 1 (Verified)
     created_at TIMESTAMP DEFAULT NOW(),    -- Creation date
     updated_at TIMESTAMP,                  -- Last update date
-    PRIMARY KEY (id, slug),                -- Composite primary key
-    UNIQUE (slug),                         -- Ensure slug is unique
-    UNIQUE (name)                          -- Ensure name is unique
+    PRIMARY KEY (id),                -- Composite primary key
+    UNIQUE (slug)                         -- Ensure slug is unique
 );
 
 CREATE OR REPLACE FUNCTION increment_visits(slug_param TEXT)
