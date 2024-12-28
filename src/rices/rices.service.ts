@@ -94,8 +94,6 @@ export class RicesService {
       }
 
       const token = uuidv4();
-      const encodedContent = Buffer.from(content).toString('base64');
-
       const metadata = {
         id: uuidv4(),
         token,
@@ -115,7 +113,7 @@ export class RicesService {
       const uploadedFilePath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.createOrUpdateFile(
         uploadedFilePath,
-        encodedContent,
+        content,
         `Add content to rice ${slug}`,
       );
 
@@ -139,13 +137,10 @@ export class RicesService {
       throw new NotFoundException('Rice file not found in GitHub');
     }
 
-    // Decode Base64 content
-    const contentPrev = Buffer.from(fileContent, 'base64').toString('utf-8');
-
     // Remove unescaped double quotes at the beginning and end, if present
-    const content = contentPrev.replace(/^"|"$/g, '');
+    // const content = contentPrev.replace(/^"|"$/g, '');
 
-    return content;
+    return fileContent;
   }
 
   async update(
@@ -156,11 +151,11 @@ export class RicesService {
   ) {
     try {
       // Extract fields from headers
-      const userAgent = headers['User-Agent'];
+      const userAgent = headers['user-agent'];
 
       if (!userAgent) {
         throw new BadRequestException(
-          'Missing required headers: X-Zen-Rice-Name, X-Zen-Rice-Author, and User-Agent are mandatory.',
+          'Missing required headers: User-Agent is mandatory.',
         );
       }
 
@@ -202,11 +197,10 @@ export class RicesService {
 
       await this.supabaseService.updateRice(slug, updatedMetadata);
 
-      const encodedContent = Buffer.from(content).toString('base64');
       const uploadedFilePath = `rices/${slug}/data.zenrice`;
       await this.gitHubService.createOrUpdateFile(
         uploadedFilePath,
-        encodedContent,
+        content,
         `Update content in rice ${slug}`,
       );
 

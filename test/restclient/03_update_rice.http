@@ -1,12 +1,10 @@
 @baseUrl = http://localhost:3000
-@previous_slug = cool-zenrice-aurora2-4fe6417d-f901-43d2-92fc-720c6ed3e449
-@previous_token = e3ec0c0f-f455-4a4e-a06d-69d2e3bbf46c
+@previous_slug = cool-zenrice-test-base64211-5f874c8c-71f7-4b45-830a-aa86c9328455
+@previous_token = 84780af0-191e-4f77-8c23-25165c89d27e
 
 PUT {{baseUrl}}/rices/{{previous_slug}}
 Content-Type: application/json
 x-zen-rices-token: {{previous_token}}
-X-Zen-Rice-Name: cool-zenrice-aurora2
-X-Zen-Rice-Author: jhon@doe.com
 User-Agent: ZenBrowser/1.2b.0 (EndeavourOS x86_64)
 
 {

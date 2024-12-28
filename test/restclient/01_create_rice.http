@@ -2,7 +2,7 @@
 
 POST {{baseUrl}}/rices
 Content-Type: application/json
-X-Zen-Rice-Name: cool-zenrice-aurora2
+X-Zen-Rice-Name: cool-zenrice-test-base64211
 X-Zen-Rice-Author: jhon@doe.com
 User-Agent: ZenBrowser/1.2b.0 (EndeavourOS x86_64)
 
