@@ -11,9 +11,10 @@ import {
   HttpStatus,
   UnauthorizedException,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { RicesService } from './rices.service';
-
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 
 @ApiTags('rices')
@@ -53,17 +54,36 @@ export class RicesController {
   }
 
   @ApiOperation({ summary: 'Get information about a Rice' })
-  @ApiResponse({ status: 200, description: 'Returns metadata of the Rice.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns metadata of the Rice as HTML.',
+  })
   @Get(':slug')
-  /*************  ✨ Codeium Command ⭐  *************/
-  /**
-   * Retrieve metadata of a rice with the given slug.
-   * @param slug Slug of the rice.
-   * @returns Metadata of the rice if found, otherwise throws a NotFoundException.
-   */
-  /******  c6f70808-e78d-4b17-a285-d2fd79527659  *******/
-  async getRice(@Param('slug') slug: string) {
-    return this.ricesService.findOne(slug);
+  async getRice(@Param('slug') slug: string, @Res() res: Response) {
+    const riceMetadata = await this.ricesService.findOne(slug);
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    const zenrice = ${riceMetadata};
+  </script>
+  <title>ZenRice download ${slug}</title>
+</head>
+<body>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      window.location.href = 'https://zen-browser.app/download';
+    });
+  </script>
+  <!-- Body content is intentionally left blank -->
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(htmlContent);
   }
 
   @ApiOperation({ summary: 'Update an existing Rice' })
