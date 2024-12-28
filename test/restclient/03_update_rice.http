@@ -7,7 +7,7 @@ Content-Type: application/json
 x-zen-rices-token: {{previous_token}}
 X-Zen-Rice-Name: cool-zenrice-aurora2
 X-Zen-Rice-Author: jhon@doe.com
-User-Agent: ZenBrowser/1.0.0.0 (EndeavourOS x86_64)
+User-Agent: ZenBrowser/1.2b.0 (EndeavourOS x86_64)
 
 {
   "userChrome": "",

@@ -34,7 +34,7 @@ export class RicesController {
   })
   @ApiHeader({
     name: 'User-Agent',
-    description: 'User-Agent in the format ZenBrowser/<version> (<OS>)',
+    description: 'User-Agent',
     required: true,
   })
   @Post()
@@ -75,7 +75,7 @@ export class RicesController {
   })
   @ApiHeader({
     name: 'User-Agent',
-    description: 'User-Agent in the format ZenBrowser/<version> (<OS>)',
+    description: 'User-Agent',
     required: true,
   })
   @Put(':slug')

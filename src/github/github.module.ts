@@ -1,5 +1,3 @@
-// src/github/github.module.ts
-
 import { Module } from '@nestjs/common';
 import { GitHubService } from './github.service';
 import { ConfigModule } from '@nestjs/config';
