@@ -5,6 +5,9 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+
+import xss from 'xss';
+import { minify } from 'csso';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSlug } from './utils/slug.util';
 import { ConfigService } from '@nestjs/config';
@@ -43,6 +46,10 @@ export class RicesService {
 
       try {
         this.validateJsonStructure(content);
+
+        content = this.sanitizeJson(content);
+        content = this.minimizeJson(content);
+
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         throw new BadRequestException('Invalid json request');
@@ -190,6 +197,10 @@ export class RicesService {
 
       try {
         this.validateJsonStructure(content);
+
+        content = this.sanitizeJson(content);
+        content = this.minimizeJson(content);
+
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         throw new BadRequestException('Invalid json request');
@@ -345,5 +356,39 @@ export class RicesService {
     }
 
     return true;
+  }
+
+  // Método para minificar los campos CSS
+  private minimizeJson(jsonString: string): string {
+    const json = JSON.parse(jsonString);
+
+    ['userChrome', 'userContent'].forEach((key) => {
+      if (json[key] && typeof json[key] === 'string') {
+        json[key] = minify(json[key]).css;
+      }
+    });
+
+    return JSON.stringify(json);
+  }
+
+  private sanitizeJson(jsonString: string): string {
+    const json = JSON.parse(jsonString);
+
+    const sanitizedJson = Object.keys(json).reduce(
+      (acc, key) => {
+        const value = json[key];
+        if (typeof value === 'string') {
+          acc[key] = xss(value); // Limpia las cadenas de texto
+        } else if (typeof value === 'object' && value !== null) {
+          acc[key] = JSON.parse(this.sanitizeJson(JSON.stringify(value))); // Recursión para objetos anidados
+        } else {
+          acc[key] = value; // Otros tipos permanecen igual
+        }
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    );
+
+    return JSON.stringify(sanitizedJson);
   }
 }

@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { RicesService } from './rices.service';
 
@@ -45,6 +46,9 @@ export class RicesController {
   ) {
     const contentString =
       typeof content === 'string' ? content : JSON.stringify(content);
+
+    this.validateFileSize(contentString); // Validate file size
+
     return this.ricesService.create(contentString, token, headers);
   }
 
@@ -88,6 +92,9 @@ export class RicesController {
   ) {
     const contentString =
       typeof content === 'string' ? content : JSON.stringify(content);
+
+    this.validateFileSize(contentString); // Validate file size
+
     return this.ricesService.update(slug, token, contentString, headers);
   }
 
@@ -120,5 +127,15 @@ export class RicesController {
     }
     await this.ricesService.moderateRemove(slug);
     return;
+  }
+
+  private validateFileSize(content: string) {
+    const sizeInBytes = Buffer.byteLength(content, 'utf-8');
+    const maxSizeInBytes = 1 * 1024 * 512; // 1 MB
+    if (sizeInBytes > maxSizeInBytes) {
+      throw new BadRequestException(
+        `The uploaded content exceeds the size limit of 512 KB.`,
+      );
+    }
   }
 }
