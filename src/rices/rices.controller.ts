@@ -73,6 +73,7 @@ export class RicesController {
   <title>Zen Rice - ${riceMetadata.name}</title>
 </head>
 <body>
+  <!-- Body content is intentionally left blank -->
   <script defer>
     document.addEventListener('DOMContentLoaded', () => {
       /* Set time out so the meta tag is set after the next DOM repaint */
@@ -83,7 +84,6 @@ export class RicesController {
       });
     });
   </script>
-  <!-- Body content is intentionally left blank -->
 </body>
 </html>`;
 
