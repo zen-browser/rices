@@ -170,6 +170,13 @@ export class RicesService {
     return fileContent;
   }
 
+  async getRiceMetadata(slug: string) {
+    const rice = await this.supabaseService.getRiceBySlug(slug);
+    if (!rice) throw new NotFoundException('Rice not found');
+
+    return rice;
+  }
+
   async update(
     slug: string,
     token: string,

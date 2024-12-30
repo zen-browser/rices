@@ -60,22 +60,27 @@ export class RicesController {
   })
   @Get(':slug')
   async getRice(@Param('slug') slug: string, @Res() res: Response) {
-    const riceMetadata = await this.ricesService.findOne(slug);
+    const riceMetadata = await this.ricesService.getRiceMetadata(slug);
 
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="robots" content="noindex">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script>
-    const zenrice = ${riceMetadata};
-  </script>
-  <title>ZenRice download ${slug}</title>
+  <meta name="zen-content-verified" content="unverified">
+  <meta name="zen-rice-data" data-author="${riceMetadata.author}" data-name="${riceMetadata.name}" data-id="${riceMetadata.id}">
+  <title>Zen Rice - ${riceMetadata.name}</title>
 </head>
 <body>
-  <script>
+  <script defer>
     document.addEventListener('DOMContentLoaded', () => {
-      window.location.href = 'https://zen-browser.app/download';
+      /* Set time out so the meta tag is set after the next DOM repaint */
+      setTimeout(() => {
+        if (document.querySelector('meta[name="zen-content-verified"]')?.content !== 'verified') {
+          window.location.replace('https://zen-browser.app/download');
+        }
+      });
     });
   </script>
   <!-- Body content is intentionally left blank -->
